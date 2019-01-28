@@ -1,5 +1,5 @@
 /*********************************************************************
-* Vector and rotation template classes                                                    *
+* Vector and rotation template classes                               *
 *                                                                    *
 * Version: 1.0                                                       *
 * Date:    02-11-2018                                                *
@@ -337,7 +337,6 @@ double distance(const Vect<D>& v, const Vect<D>& w){
 //################################################################### 
 //################################################################### 
 //###################################################################
-//===================================================================
 
 template<int D>
 class Rotation
@@ -345,11 +344,17 @@ class Rotation
 	private:
 		double rad;
 		Vect<D> P1;
-		Vect<D> Q;
 		Vect<D> P2;
+		Vect<D> Q;
+		Vect<D> Offset;
+		void setup(Vect<D> rotation_axe);
+		void set_angle(double angle);
 
 	public:
-		Rotation(Vect<D> v, double angle);
+		Rotation(Vect<D> V, double angle);
+		Rotation(Vect<D> V, Vect<D> W, double angle);
+		Rotation(std::initializer_list<double> l, double angle);
+		Rotation(std::initializer_list<double> lp, std::initializer_list<double> lq, double angle);
 		Vect<D> operator()(const Vect<D>& v);
 		Vect<D> operator()(double ang, const Vect<D>& V);
 };
@@ -358,21 +363,67 @@ class Rotation
 //===================================================================
 
 template<int D>
-Rotation<D>::Rotation(Vect<D> rotation_axe, double angle)
-{
+Rotation<D>::Rotation(Vect<D> rotation_axe, double angle){
+	Vect<D> O;
+	Offset=O;
+	set_angle(angle);
+	setup(rotation_axe);
+}
+
+//===================================================================
+
+template<int D>
+Rotation<D>::Rotation(std::initializer_list<double> l, double angle){
+	Vect<D> O;
+	Offset=O;
+	set_angle(angle);
+	Vect<D> V(l);
+	setup(V);
+}
+
+//===================================================================
+
+
+template<int D>
+Rotation<D>::Rotation(std::initializer_list<double> lp, std::initializer_list<double> lq, double angle){
+	set_angle(angle);
+	Vect<D> V(lp);
+	Vect<D> U(lq);
+	Offset=U;
+	setup(V-U);
+}
+
+//===================================================================
+
+template<int D>
+Rotation<D>::Rotation(Vect<D> V, Vect<D> W, double angle){
+	Offset=W;
+	set_angle(angle);
+	setup(V-W);
+}
+
+//===================================================================
+
+template<int D>
+void Rotation<D>::set_angle(double angle){
 	if(fabs(angle)>=360.0){
 		angle=(fabs(angle)/angle)*(fabs(angle)-360.0);
 	}
 
 	rad=((angle/2)*M_PI)/180;
+}
+
+//===================================================================
+
+template<int D>
+void Rotation<D>::setup(Vect<D> rotation_axe){
+
 	/*
 	First we get a canonical solution to the equation axe dot v=0.
-	This is, everything zero except 2 coordinates where at least one is non
-	zero for example
+	This is everything zero except 2 for example
 	axe =(a,b,c,d);
-	v=(0,c,-b,0); where b*c!=0
+	v=(0,c,-b,0); where b and c are, at least one, not zero
 	*/
-
 	double a[D];
 	a[0]=0;
 	a[1]=0;
@@ -383,7 +434,7 @@ Rotation<D>::Rotation(Vect<D> rotation_axe, double angle)
 	s[0]=1;
 	s[1]=1;
 	int P[2]={0,1};
-
+	// we get two non zero values
 	if(D>2){
 		for(int i=2; i<D; i++){
 			a[i]=0;
@@ -397,6 +448,8 @@ Rotation<D>::Rotation(Vect<D> rotation_axe, double angle)
 			}
 		}
 		
+		//cout<<P[0]<<" "<<P[1]<<endl;
+		
 		a[P[0]]=rotation_axe.get_coordinate(P[1]);
 		a[P[1]]=-1.0*rotation_axe.get_coordinate(P[0]);
 		Vect<D> p(a, D);
@@ -404,32 +457,29 @@ Rotation<D>::Rotation(Vect<D> rotation_axe, double angle)
 		b[P[0]]=0;
 		b[P[1]]=0;
 		Vect<D> B(b, D);
-
+	  
 	   /*
 		 Now, we use p to construct an orthogonal vector W 
 		 WE CAN USE the cross product!! 
 		 NOOO, of course NOT!!! 
 		 we need something easy and fast
 		*/
-
 		double r=0;
 		r=rotation_axe.get_coordinate(P[0])*p.get_coordinate(P[1]);
 		r-=rotation_axe.get_coordinate(P[1])*p.get_coordinate(P[0]);
 		s[P[0]]=(-1.0*dot_prod(B, rotation_axe)*p.get_coordinate(P[1]))/r;
 		s[P[1]]=(dot_prod(B, rotation_axe)*p.get_coordinate(P[0]))/r;
-
 		Vect<D> W(s, D);
-		Q=W.normalize();
 		P1=p.normalize();
-		P2=sin(rad)*Q+cos(rad)*P1;
+		P2=W.normalize();
+		Q=sin(rad)*P2+cos(rad)*P1;
 	}
 	else{
 		Vect<D> v({1, 0});
 		P1=v;
-		Vect<D> q({0, 1});
-		Q=q;
-		Vect<D> w({sin(rad), cos(rad)});
+		Vect<D> w({0, 1});
 		P2=w;
+		Q=sin(rad)*P2+cos(rad)*P1;
 	}
 }
 
@@ -437,9 +487,8 @@ Rotation<D>::Rotation(Vect<D> rotation_axe, double angle)
 
 template<int D>
 Vect<D> Rotation<D>::operator()(const Vect<D>& V){
-	double t=2*dot_prod(V, P2);
-	//cout<<"Norm: "<<V.norm()<<endl;
-	return V-t*P2+(t*2*cos(rad)-2*dot_prod(V, P1))*P1;
+	double t=2*dot_prod(V-Offset, Q);
+	return V-t*Q+(t*2*cos(rad)-2*dot_prod(V-Offset, P1))*P1;
 }
 
 //===================================================================
@@ -449,12 +498,18 @@ Vect<D> Rotation<D>::operator()(double ang, const Vect<D>& V){
 	static double local_ang=0;
 	if(ang!=local_ang){
 		local_ang=ang;
-		P2=sin(rad)*Q+cos(rad)*P1;
+		Q=sin(rad)*P2+cos(rad)*P1;
 	}
-	double t=2*dot_prod(V, P2);
-	//cout<<"Norm: "<<V.norm()<<endl;
-	return V-t*P2+(t*2*cos(rad)-2*dot_prod(V, P1))*P1;
+	double t=2*dot_prod(V-Offset, Q);
+	return V-t*Q+(t*2*cos(rad)-2*dot_prod(V-Offset, P1))*P1;
 }
+
+
+
+//===================================================================
+
+
+
 
 #endif
 
