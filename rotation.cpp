@@ -25,15 +25,15 @@ class RBall : public Base
 		double x_, y_, r_;
 
 	public:
-		RBall(double x, double y, double r);
+		RBall(double x, double y, double r, sf::Color color);
 		void move(double x, double y);
 		void print();
 };
 
-RBall::RBall(double x, double y, double r)
+RBall::RBall(double x, double y, double r, sf::Color color)
  :x_(x), y_(y), r_(r), ball(r) 
 {
-	ball.setFillColor(sf::Color(156, 86, 216));
+	ball.setFillColor(color);
 	
 	ball.setPosition((*RF)(x_-r_,'x'), (*RF)(y_+r_,'y')); 
 }
@@ -63,9 +63,9 @@ int main(){
 
 	RBall::set_rf(&RF);
 	RBall::set_window(&window);
-	RBall ball0(0.0, 0.0, 4);
+	RBall ball0(0.0, 0.0, 4, sf::Color(156, 86, 216));
 	
-	RBall ball(200.0, 200.0, 20);
+	RBall ball(200.0, 200.0, 20, sf::Color(56, 186, 126));
 	
 	Vect<3> VX({7.0, -11.0, 8.0});
 	Rotation<3> Rotacion(VX, 0.5);
@@ -74,7 +74,7 @@ int main(){
 	Vect<3> VX2({0, 0, 1});
 	Rotation<3> Rotacion2(VX2, 0.5);
 	Vect<3> V2({200.0, 200.0, 0.0});
-	RBall ball2(200.0, 200.0, 20);
+	RBall ball2(200.0, 200.0, 20, sf::Color(246, 6, 116));
 
 	FrameRate Framerate(4);
 	double t;
